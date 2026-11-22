@@ -23,9 +23,6 @@
  * model and has not yet been reviewed by a human translator. Corrections are
  * welcome.
  *
- * HINWEIS: Diese deutsche Übersetzung wurde automatisch von einem KI-Sprachmodell
- * erstellt und noch nicht von einem Menschen geprüft. Korrekturen sind willkommen.
- *
  * @package    tool_murelation
  * @copyright  2026 Petr Skoda
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -33,7 +30,7 @@
 
 $string['actions_a'] = 'Aktionen: {$a}';
 $string['cohort_usage_framework'] = 'Beziehungsrahmen: {$a}';
-$string['cohort_usage_team'] = 'Globale Gruppen von Teams';
+$string['cohort_usage_team'] = 'Teams: Globale Gruppe des Teams';
 $string['error_maxsubordinates'] = 'Höchstzahl der Mitarbeiter/innen erreicht';
 $string['error_noframeworks'] = 'Keine Beziehungsrahmen für Nutzer/innen gefunden';
 $string['error_nosubordinates'] = 'Keine Mitarbeiter/innen gefunden';
@@ -69,7 +66,7 @@ $string['management_team_actions'] = 'Aktionen für das Team';
 $string['management_user_actions'] = 'Aktionen für Nutzerbeziehungen';
 $string['member_delete_a'] = '{$a} entfernen';
 $string['member_update_a'] = '{$a} bearbeiten';
-$string['members_add_cohort_a'] = 'Aus globaler Gruppe hinzufügen';
+$string['members_add_cohort_a'] = '{$a} aus globaler Gruppe hinzufügen';
 $string['members_create_a'] = '{$a} hinzufügen';
 $string['murelation:manageframeworks'] = 'Beziehungsrahmen für Nutzer/innen verwalten';
 $string['murelation:managepositions'] = 'Vorgesetzte und Teams verwalten';
@@ -78,7 +75,7 @@ $string['murelation:viewpositions'] = 'Vorgesetzte und Teams anzeigen';
 $string['pluginname'] = 'Vorgesetzte und Teams';
 $string['privacy:metadata:field:frameworkid'] = 'Rahmen';
 $string['privacy:metadata:field:supervisorid'] = 'Vorgesetzte/r';
-$string['privacy:metadata:field:teamidnumber'] = 'ID-Nummer des Teams';
+$string['privacy:metadata:field:teamidnumber'] = 'Team-ID';
 $string['privacy:metadata:field:teamname'] = 'Name des Teams';
 $string['privacy:metadata:field:teamposition'] = 'Position im Team';
 $string['privacy:metadata:field:userid'] = 'Nutzer/in';
@@ -114,7 +111,7 @@ $string['team_create'] = 'Team anlegen';
 $string['team_delete'] = 'Team löschen';
 $string['team_delete_confirm'] = 'Aktivieren Sie das Kontrollkästchen, um das Löschen des Teams zu bestätigen (Anzahl der Mitarbeiter/innen: {$a})';
 $string['team_details'] = 'Details zum Team';
-$string['team_idnumber'] = 'ID-Nummer des Teams';
+$string['team_idnumber'] = 'Team-ID';
 $string['team_maxsubordinates'] = 'Max. Anzahl der Teammitglieder';
 $string['team_name'] = 'Name des Teams';
 $string['team_position'] = 'Position im Team';

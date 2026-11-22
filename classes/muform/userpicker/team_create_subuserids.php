@@ -17,20 +17,21 @@
 // phpcs:disable moodle.Files.BoilerplateComment.CommentEndedTooSoon
 // phpcs:disable moodle.Files.LineLength.TooLong
 
-namespace tool_murelation\muform\autocomplete;
+namespace tool_murelation\muform\userpicker;
 
 use stdClass;
+use tool_mulib\local\sql;
 use tool_murelation\local\uimode_teams;
 use tool_murelation\muform\util\autocomplete\framework_users_trait;
 
 /**
- * Supervisor of a new team, teams UI.
+ * Members of a new team, teams UI.
  *
  * @package     tool_murelation
  * @copyright   2026 Petr Skoda
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-final class team_create_userid extends \tool_mulib\muform\autocomplete\base {
+final class team_create_subuserids extends \tool_mulib\muform\userpicker\base {
     use framework_users_trait;
 
     /** @var stdClass framework record */
@@ -62,7 +63,7 @@ final class team_create_userid extends \tool_mulib\muform\autocomplete\base {
         if (!uimode_teams::can_create_team($this->framework, $this->context)) {
             throw new \core\exception\invalid_parameter_exception('Cannot create team');
         }
-        $this->options = ['activeonly' => true];
+        $this->options = ['notsubordinate' => true];
     }
 
     #[\Override]
@@ -71,18 +72,12 @@ final class team_create_userid extends \tool_mulib\muform\autocomplete\base {
     }
 
     #[\Override]
-    public function search(string $query, int $maxitems): ?array {
-        return $this->search_users($this->context, $query, $maxitems, [], $this->get_framework_where($this->framework, 'supervisor', $this->options));
+    protected function get_context(): \core\context {
+        return $this->context;
     }
 
     #[\Override]
-    public function label(string $value): ?string {
-        $where = $this->get_framework_where($this->framework, 'supervisor', $this->options);
-        return $this->user_labels($this->context, [$value], $where)[$value] ?? null;
-    }
-
-    #[\Override]
-    public function validate(string $value): ?string {
-        return $this->validate_users([$value])[$value] ?? null;
+    protected function get_candidates_sql(): ?sql {
+        return $this->get_framework_where($this->framework, 'subordinate', $this->options);
     }
 }

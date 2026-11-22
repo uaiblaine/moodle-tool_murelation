@@ -17,28 +17,41 @@
 // phpcs:disable moodle.Files.BoilerplateComment.CommentEndedTooSoon
 // phpcs:disable moodle.Files.LineLength.TooLong
 
-namespace tool_murelation\phpunit\muform\autocompletemany;
+namespace tool_murelation\phpunit\muform\userpicker;
 
-use tool_murelation\muform\autocompletemany\subordinates_create_subuserids;
+use tool_murelation\muform\userpicker\subordinates_create_subuserids;
 use tool_murelation\local\framework;
 use tool_mulib\local\mulib;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * New subordinates of a supervisor autocomplete source tests.
+ * New subordinates of a supervisor users picker source tests.
  *
  * @package     tool_murelation
  * @copyright   2026 Petr Skoda
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(\tool_murelation\muform\autocompletemany\subordinates_create_subuserids::class)]
+#[CoversClass(\tool_murelation\muform\userpicker\subordinates_create_subuserids::class)]
 #[Group('MuTMS')]
 final class subordinates_create_subuserids_test extends \advanced_testcase {
     #[\Override]
     public function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
+    }
+
+    /**
+     * Users on the first page of the panel.
+     *
+     * @param \tool_mulib\muform\userpicker\base $source
+     * @param string $query
+     * @param string[] $exclude
+     * @return array user id => label html
+     */
+    private function search(\tool_mulib\muform\userpicker\base $source, string $query, array $exclude = []): array {
+        $result = $source->search($query, $exclude, 0);
+        return array_combine(array_column($result['rows'], 'id'), array_column($result['rows'], 'label'));
     }
 
     public function test_search(): void {
@@ -92,25 +105,25 @@ final class subordinates_create_subuserids_test extends \advanced_testcase {
 
         $source = new subordinates_create_subuserids((int)$framework1->id, 0, (int)$user0->id);
         $this->assertSame([(int)$framework1->id, 0, (int)$user0->id], $source->get_args());
-        $result = $source->search('', 50, []);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$manager->id, (int)$admin->id, (int)$user1->id, (int)$user2->id], array_keys($result));
         $this->assertStringContainsString('First User', $result[$user1->id]);
         $this->assertStringContainsString('user1@example.com', $result[$user1->id]);
 
-        $result = $source->search('irst', 50, []);
+        $result = $this->search($source, 'irst');
         $this->assertSame([(int)$user1->id], array_keys($result));
 
-        $result = $source->search('', 50, [(string)$admin->id, (string)$user1->id]);
+        $result = $this->search($source, '', [(string)$admin->id, (string)$user1->id]);
         $this->assertSame([(int)$manager->id, (int)$user2->id], array_keys($result));
 
-        $this->assertNull($source->search('', 3, []));
-        $this->assertCount(3, $source->search('', 3, [(string)$admin->id]));
+        $this->assertGreaterThan(3, $source->search('', [], 0)['total']);
+        $this->assertCount(3, $this->search($source, '', [(string)$admin->id]));
 
         $source = new subordinates_create_subuserids((int)$framework2->id, 0, (int)$user0->id);
-        $result = $source->search('', 50, []);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$user1->id, (int)$user2->id], array_keys($result));
 
-        $result = $source->search('user2@', 50, []);
+        $result = $this->search($source, 'user2@');
         $this->assertSame([(int)$user2->id], array_keys($result));
 
         // Existing subordinates in the framework are not offered.
@@ -119,7 +132,7 @@ final class subordinates_create_subuserids_test extends \advanced_testcase {
             'userid' => $user0->id,
             'subuserid' => $user2->id,
         ]);
-        $result = $source->search('', 50, []);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$user1->id], array_keys($result));
 
         try {
@@ -156,26 +169,26 @@ final class subordinates_create_subuserids_test extends \advanced_testcase {
         $this->setUser($manager);
 
         $source = new subordinates_create_subuserids((int)$framework1->id, 0, (int)$user0->id);
-        $result = $source->search('', 50, []);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$manager->id, (int)$admin->id, (int)$user1->id, (int)$user2->id], array_keys($result));
 
         $source = new subordinates_create_subuserids((int)$framework1->id, (int)$tenant1->id, (int)$user0->id);
-        $this->assertSame([], $source->search('', 50, []));
+        $this->assertSame([], $this->search($source, ''));
 
         $user1 = \tool_mutenancy\local\user::allocate($user1->id, $tenant1->id);
         $user2 = \tool_mutenancy\local\user::allocate($user2->id, $tenant2->id);
         cohort_add_member($cohort1->id, $user0->id);
 
         $source = new subordinates_create_subuserids((int)$framework1->id, 0, (int)$user0->id);
-        $result = $source->search('', 50, []);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$manager->id, (int)$admin->id, (int)$user1->id, (int)$user2->id], array_keys($result));
 
         $source = new subordinates_create_subuserids((int)$framework1->id, (int)$tenant1->id, (int)$user0->id);
-        $result = $source->search('', 50, []);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$user1->id], array_keys($result));
 
         $source = new subordinates_create_subuserids((int)$framework1->id, (int)$tenant2->id, (int)$user0->id);
-        $result = $source->search('', 50, []);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$user2->id], array_keys($result));
     }
 

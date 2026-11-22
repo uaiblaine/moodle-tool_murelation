@@ -17,28 +17,40 @@
 // phpcs:disable moodle.Files.BoilerplateComment.CommentEndedTooSoon
 // phpcs:disable moodle.Files.LineLength.TooLong
 
-namespace tool_murelation\phpunit\muform\autocomplete;
+namespace tool_murelation\phpunit\muform\cohortpicker;
 
-use tool_murelation\muform\autocomplete\members_add_cohort_cohortid;
+use tool_murelation\muform\cohortpicker\members_add_cohort_cohortid;
 use tool_murelation\local\framework;
 use tool_mulib\local\mulib;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Cohort with subordinate candidates for team autocomplete source tests.
+ * Cohort with subordinate candidates for team picker source tests.
  *
  * @package     tool_murelation
  * @copyright   2026 Petr Skoda
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(\tool_murelation\muform\autocomplete\members_add_cohort_cohortid::class)]
+#[CoversClass(\tool_murelation\muform\cohortpicker\members_add_cohort_cohortid::class)]
 #[Group('MuTMS')]
 final class members_add_cohort_cohortid_test extends \advanced_testcase {
     #[\Override]
     public function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
+    }
+
+    /**
+     * Cohorts offered by the source.
+     *
+     * @param \tool_mulib\muform\cohortpicker\base $source
+     * @param string $query
+     * @param string[] $exclude
+     * @return string[] cohort names indexed with cohort ids, in the order of names
+     */
+    private function search(\tool_mulib\muform\cohortpicker\base $source, string $query, array $exclude = []): array {
+        return array_column($source->search($query, $exclude)['cohorts'], 'name', 'id');
     }
 
     public function test_constructor(): void {
@@ -160,12 +172,11 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
         $this->setUser($admin);
 
         $source = new members_add_cohort_cohortid((int)$supervisor1->id);
-        $this->assertSame(50, $source->get_maxitems());
         $this->assertSame([
             (int)$cohort0->id => $cohort0->name,
             (int)$cohort1->id => $cohort1->name,
             (int)$cohort2->id => $cohort2->name,
-        ], $source->search('', 50));
+        ], $this->search($source, ''));
 
         $this->setUser($manager);
 
@@ -173,13 +184,11 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
         $this->assertSame([
             (int)$cohort0->id => $cohort0->name,
             (int)$cohort1->id => $cohort1->name,
-        ], $source->search('', 50));
+        ], $this->search($source, ''));
 
         $this->assertSame([
             (int)$cohort0->id => $cohort0->name,
-        ], $source->search($cohort0->name, 50));
-
-        $this->assertNull($source->search('', 1));
+        ], $this->search($source, $cohort0->name));
 
         if (!mulib::is_mutenancy_available()) {
             return;
@@ -203,7 +212,7 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
         $this->assertSame([
             (int)$cohort0->id => $cohort0->name,
             (int)$cohort1->id => $cohort1->name,
-        ], $source->search('', 50));
+        ], $this->search($source, ''));
 
         $supervisor4 = \tool_murelation\local\uimode_teams::team_create((object)[
             'frameworkid' => $framework1->id,
@@ -216,7 +225,7 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
             (int)$cohort0->id => $cohort0->name,
             (int)$cohort1->id => $cohort1->name,
             (int)$cohort3->id => $cohort3->name,
-        ], $source->search('', 50));
+        ], $this->search($source, ''));
     }
 
     public function test_get_candidates(): void {
@@ -402,18 +411,22 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
         $this->setUser($manager);
 
         $source = new members_add_cohort_cohortid((int)$supervisor1->id);
-        $this->assertSame($cohort0->name, $source->label((string)$cohort0->id));
-        $this->assertSame($cohort1->name, $source->label((string)$cohort1->id));
-        $this->assertNull($source->label((string)$cohort2->id));
-        $this->assertNull($source->label('-10'));
-        $this->assertNull($source->label('0'));
-        $this->assertNull($source->label('999999'));
-        $this->assertNull($source->label('abc'));
-        $this->assertNull($source->label(''));
+        $value = (string)$cohort0->id;
+        $this->assertSame($cohort0->name, $source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort1->id;
+        $this->assertSame($cohort1->name, $source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort2->id;
+        $this->assertNull($source->labels([$value])[$value] ?? null);
+        $this->assertNull($source->labels(['-10'])['-10'] ?? null);
+        $this->assertNull($source->labels(['0'])['0'] ?? null);
+        $this->assertNull($source->labels(['999999'])['999999'] ?? null);
+        $this->assertNull($source->labels(['abc'])['abc'] ?? null);
+        $this->assertNull($source->labels([''])[''] ?? null);
 
         $this->setUser($admin);
         $source = new members_add_cohort_cohortid((int)$supervisor1->id);
-        $this->assertSame($cohort2->name, $source->label((string)$cohort2->id));
+        $value = (string)$cohort2->id;
+        $this->assertSame($cohort2->name, $source->labels([$value])[$value] ?? null);
 
         if (!mulib::is_mutenancy_available()) {
             return;
@@ -439,14 +452,20 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
         $this->setUser($manager);
 
         $source = new members_add_cohort_cohortid((int)$supervisor1->id);
-        $this->assertSame($cohort0->name, $source->label((string)$cohort0->id));
-        $this->assertNull($source->label((string)$cohort3->id));
-        $this->assertNull($source->label((string)$cohort4->id));
+        $value = (string)$cohort0->id;
+        $this->assertSame($cohort0->name, $source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort3->id;
+        $this->assertNull($source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort4->id;
+        $this->assertNull($source->labels([$value])[$value] ?? null);
 
         $source = new members_add_cohort_cohortid((int)$supervisor4->id);
-        $this->assertSame($cohort0->name, $source->label((string)$cohort0->id));
-        $this->assertSame($cohort3->name, $source->label((string)$cohort3->id));
-        $this->assertNull($source->label((string)$cohort4->id));
+        $value = (string)$cohort0->id;
+        $this->assertSame($cohort0->name, $source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort3->id;
+        $this->assertSame($cohort3->name, $source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort4->id;
+        $this->assertNull($source->labels([$value])[$value] ?? null);
     }
 
     public function test_validate(): void {
@@ -517,25 +536,32 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
         $this->setUser($manager);
 
         $source = new members_add_cohort_cohortid((int)$supervisor1->id);
-        $this->assertNotNull($source->label((string)$cohort0->id));
-        $this->assertNull($source->validate((string)$cohort0->id));
-        $this->assertNotNull($source->label((string)$cohort1->id));
-        $this->assertSame('No subordinates found', $source->validate((string)$cohort1->id));
+        $value = (string)$cohort0->id;
+        $this->assertNotNull($source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort0->id;
+        $this->assertNull($source->validate([$value])[$value] ?? null);
+        $value = (string)$cohort1->id;
+        $this->assertNotNull($source->labels([$value])[$value] ?? null);
+        $value = (string)$cohort1->id;
+        $this->assertSame('No subordinates found', $source->validate([$value])[$value] ?? null);
         // Hidden cohort is not allowed for manager without cohort view capability.
-        $this->assertNull($source->label((string)$cohort2->id));
+        $value = (string)$cohort2->id;
+        $this->assertNull($source->labels([$value])[$value] ?? null);
 
         $supervisor1 = \tool_murelation\local\supervisor::update((object)[
             'id' => $supervisor1->id,
             'maxsubordinates' => 2,
         ]);
         $source = new members_add_cohort_cohortid((int)$supervisor1->id);
-        $this->assertSame('Subordinates limit reached', $source->validate((string)$cohort0->id));
+        $value = (string)$cohort0->id;
+        $this->assertSame('Subordinates limit reached', $source->validate([$value])[$value] ?? null);
         $supervisor1 = \tool_murelation\local\supervisor::update((object)[
             'id' => $supervisor1->id,
             'maxsubordinates' => 3,
         ]);
         $source = new members_add_cohort_cohortid((int)$supervisor1->id);
-        $this->assertNull($source->validate((string)$cohort0->id));
+        $value = (string)$cohort0->id;
+        $this->assertNull($source->validate([$value])[$value] ?? null);
 
         if (!mulib::is_mutenancy_available()) {
             return;
@@ -573,21 +599,30 @@ final class members_add_cohort_cohortid_test extends \advanced_testcase {
         $source4 = new members_add_cohort_cohortid((int)$supervisor4->id);
         $source5 = new members_add_cohort_cohortid((int)$supervisor5->id);
 
-        $this->assertSame('No subordinates found', $source4->validate((string)$cohort1->id));
+        $value = (string)$cohort1->id;
+        $this->assertSame('No subordinates found', $source4->validate([$value])[$value] ?? null);
 
         cohort_add_member($cohort1->id, $tuser1->id);
         cohort_add_member($cohort1->id, $tuser2->id);
         cohort_add_member($cohort3->id, $tuser1->id);
         cohort_add_member($cohort4->id, $tuser2->id);
 
-        $this->assertNotNull($source4->label((string)$cohort1->id));
-        $this->assertNull($source4->validate((string)$cohort1->id));
-        $this->assertNotNull($source5->label((string)$cohort1->id));
-        $this->assertNull($source5->validate((string)$cohort1->id));
+        $value = (string)$cohort1->id;
+        $this->assertNotNull($source4->labels([$value])[$value] ?? null);
+        $value = (string)$cohort1->id;
+        $this->assertNull($source4->validate([$value])[$value] ?? null);
+        $value = (string)$cohort1->id;
+        $this->assertNotNull($source5->labels([$value])[$value] ?? null);
+        $value = (string)$cohort1->id;
+        $this->assertNull($source5->validate([$value])[$value] ?? null);
 
-        $this->assertNotNull($source4->label((string)$cohort3->id));
-        $this->assertNull($source4->validate((string)$cohort3->id));
-        $this->assertNull($source5->label((string)$cohort3->id));
-        $this->assertSame('No subordinates found', $source5->validate((string)$cohort3->id));
+        $value = (string)$cohort3->id;
+        $this->assertNotNull($source4->labels([$value])[$value] ?? null);
+        $value = (string)$cohort3->id;
+        $this->assertNull($source4->validate([$value])[$value] ?? null);
+        $value = (string)$cohort3->id;
+        $this->assertNull($source5->labels([$value])[$value] ?? null);
+        $value = (string)$cohort3->id;
+        $this->assertSame('No subordinates found', $source5->validate([$value])[$value] ?? null);
     }
 }

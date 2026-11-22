@@ -17,28 +17,41 @@
 // phpcs:disable moodle.Files.BoilerplateComment.CommentEndedTooSoon
 // phpcs:disable moodle.Files.LineLength.TooLong
 
-namespace tool_murelation\phpunit\muform\autocomplete;
+namespace tool_murelation\phpunit\muform\userpicker;
 
-use tool_murelation\muform\autocomplete\team_create_userid;
+use tool_murelation\muform\userpicker\team_create_subuserids;
 use tool_murelation\local\framework;
 use tool_mulib\local\mulib;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Supervisor of a new team autocomplete source tests.
+ * Members of a new team users picker source tests.
  *
  * @package     tool_murelation
  * @copyright   2026 Petr Skoda
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[CoversClass(\tool_murelation\muform\autocomplete\team_create_userid::class)]
+#[CoversClass(\tool_murelation\muform\userpicker\team_create_subuserids::class)]
 #[Group('MuTMS')]
-final class team_create_userid_test extends \advanced_testcase {
+final class team_create_subuserids_test extends \advanced_testcase {
     #[\Override]
     public function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
+    }
+
+    /**
+     * Users on the first page of the panel.
+     *
+     * @param \tool_mulib\muform\userpicker\base $source
+     * @param string $query
+     * @param string[] $exclude
+     * @return array user id => label html
+     */
+    private function search(\tool_mulib\muform\userpicker\base $source, string $query, array $exclude = []): array {
+        $result = $source->search($query, $exclude, 0);
+        return array_combine(array_column($result['rows'], 'id'), array_column($result['rows'], 'label'));
     }
 
     public function test_search(): void {
@@ -60,7 +73,7 @@ final class team_create_userid_test extends \advanced_testcase {
         ]);
         $framework2 = $generator->create_framework([
             'uimode' => framework::UIMODE_TEAMS,
-            'supervisorcohortid' => $cohort->id,
+            'subordinatecohortid' => $cohort->id,
         ]);
 
         $admin = get_admin();
@@ -87,40 +100,47 @@ final class team_create_userid_test extends \advanced_testcase {
             'email' => 'user2@example.com',
         ]);
         cohort_add_member($cohort->id, $user2->id);
-        $suspended = $this->getDataGenerator()->create_user([
-            'firstname' => 'Suspended',
+
+        $user3 = $this->getDataGenerator()->create_user([
+            'firstname' => 'Second',
             'lastname' => 'User',
-            'email' => 'suspended@example.com',
-            'suspended' => 1,
+            'email' => 'user2@example.com',
         ]);
-        cohort_add_member($cohort->id, $suspended->id);
+        cohort_add_member($cohort->id, $user3->id);
+
+        $supervisor3 = \tool_murelation\local\uimode_teams::team_create((object)[
+            'frameworkid' => $framework1->id,
+            'teamname' => 'Team 3',
+            'subuserids' => [$user3->id],
+        ]);
 
         $this->setUser($manager);
 
-        $source = new team_create_userid((int)$framework1->id, 0);
+        $source = new team_create_subuserids((int)$framework1->id, 0);
         $this->assertSame([(int)$framework1->id, 0], $source->get_args());
-        $result = $source->search('', 50);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$manager->id, (int)$admin->id, (int)$user1->id, (int)$user0->id, (int)$user2->id], array_keys($result));
         $this->assertStringContainsString('First User', $result[$user1->id]);
         $this->assertStringContainsString('user1@example.com', $result[$user1->id]);
 
-        $result = $source->search('irst', 50);
+        $result = $this->search($source, 'irst');
         $this->assertSame([(int)$user1->id], array_keys($result));
 
-        $this->assertSame([], $source->search('Suspended', 50));
+        $result = $this->search($source, '', [(string)$manager->id, (string)$user0->id]);
+        $this->assertSame([(int)$admin->id, (int)$user1->id, (int)$user2->id], array_keys($result));
 
-        $this->assertNull($source->search('', 4));
-        $this->assertCount(5, $source->search('', 5));
+        $this->assertGreaterThan(4, $source->search('', [], 0)['total']);
+        $this->assertCount(4, $this->search($source, '', [(string)$admin->id]));
 
-        $source = new team_create_userid((int)$framework2->id, 0);
-        $result = $source->search('', 50);
-        $this->assertSame([(int)$user1->id, (int)$user2->id], array_keys($result));
+        $source = new team_create_subuserids((int)$framework2->id, 0);
+        $result = $this->search($source, '');
+        $this->assertSame([(int)$user1->id, (int)$user2->id, (int)$user3->id], array_keys($result));
 
-        $result = $source->search('user2@', 50);
-        $this->assertSame([(int)$user2->id], array_keys($result));
+        $result = $this->search($source, 'user2@');
+        $this->assertSame([(int)$user2->id, (int)$user3->id], array_keys($result));
 
         try {
-            new team_create_userid((int)$framework0->id, 0);
+            new team_create_subuserids((int)$framework0->id, 0);
             $this->fail('exception expected');
         } catch (\core\exception\moodle_exception $ex) {
             $this->assertInstanceOf(\invalid_parameter_exception::class, $ex);
@@ -129,7 +149,7 @@ final class team_create_userid_test extends \advanced_testcase {
 
         $this->setUser($user1);
         try {
-            new team_create_userid((int)$framework1->id, 0);
+            new team_create_subuserids((int)$framework1->id, 0);
             $this->fail('exception expected');
         } catch (\core\exception\moodle_exception $ex) {
             $this->assertInstanceOf(\invalid_parameter_exception::class, $ex);
@@ -152,28 +172,28 @@ final class team_create_userid_test extends \advanced_testcase {
 
         $this->setUser($manager);
 
-        $source = new team_create_userid((int)$framework1->id, 0);
-        $result = $source->search('', 50);
+        $source = new team_create_subuserids((int)$framework1->id, 0);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$manager->id, (int)$admin->id, (int)$user1->id, (int)$user0->id, (int)$user2->id], array_keys($result));
 
-        $source = new team_create_userid((int)$framework1->id, (int)$tenant1->id);
+        $source = new team_create_subuserids((int)$framework1->id, (int)$tenant1->id);
         $this->assertSame([(int)$framework1->id, (int)$tenant1->id], $source->get_args());
-        $this->assertSame([], $source->search('', 50));
+        $this->assertSame([], $this->search($source, ''));
 
         $user1 = \tool_mutenancy\local\user::allocate($user1->id, $tenant1->id);
         $user2 = \tool_mutenancy\local\user::allocate($user2->id, $tenant2->id);
         cohort_add_member($cohort1->id, $user0->id);
 
-        $source = new team_create_userid((int)$framework1->id, 0);
-        $result = $source->search('', 50);
+        $source = new team_create_subuserids((int)$framework1->id, 0);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$manager->id, (int)$admin->id, (int)$user1->id, (int)$user0->id, (int)$user2->id], array_keys($result));
 
-        $source = new team_create_userid((int)$framework1->id, (int)$tenant1->id);
-        $result = $source->search('', 50);
+        $source = new team_create_subuserids((int)$framework1->id, (int)$tenant1->id);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$user1->id, (int)$user0->id], array_keys($result));
 
-        $source = new team_create_userid((int)$framework1->id, (int)$tenant2->id);
-        $result = $source->search('', 50);
+        $source = new team_create_subuserids((int)$framework1->id, (int)$tenant2->id);
+        $result = $this->search($source, '');
         $this->assertSame([(int)$user2->id], array_keys($result));
     }
 
@@ -204,19 +224,19 @@ final class team_create_userid_test extends \advanced_testcase {
         ]);
 
         $this->setUser($user);
-        $source = new team_create_userid((int)$framework1->id, 0);
-        $result = $source->label((string)$user1->id);
+        $source = new team_create_subuserids((int)$framework1->id, 0);
+        $result = $source->labels([(string)$user1->id])[$user1->id];
         $this->assertStringContainsString('First User', $result);
         $this->assertStringNotContainsString($user1->email, $result);
 
         $this->setUser($manager);
-        $source = new team_create_userid((int)$framework1->id, 0);
-        $result = $source->label((string)$user1->id);
+        $source = new team_create_subuserids((int)$framework1->id, 0);
+        $result = $source->labels([(string)$user1->id])[$user1->id];
         $this->assertStringContainsString('First User', $result);
         $this->assertStringContainsString($user1->email, $result);
     }
 
-    public function test_label(): void {
+    public function test_labels(): void {
         /** @var \tool_murelation_generator $generator */
         $generator = $this->getDataGenerator()->get_plugin_generator('tool_murelation');
 
@@ -235,7 +255,7 @@ final class team_create_userid_test extends \advanced_testcase {
         ]);
         $framework2 = $generator->create_framework([
             'uimode' => framework::UIMODE_TEAMS,
-            'supervisorcohortid' => $cohort->id,
+            'subordinatecohortid' => $cohort->id,
         ]);
 
         $manager = $this->getDataGenerator()->create_user([
@@ -261,30 +281,25 @@ final class team_create_userid_test extends \advanced_testcase {
             'email' => 'user2@example.com',
         ]);
         cohort_add_member($cohort->id, $user2->id);
-        $suspended = $this->getDataGenerator()->create_user(['suspended' => 1]);
-        cohort_add_member($cohort->id, $suspended->id);
+        $user3 = $this->getDataGenerator()->create_user();
         $deleted = $this->getDataGenerator()->create_user();
         delete_user($deleted);
 
+        \tool_murelation\local\uimode_teams::team_create((object)[
+            'frameworkid' => $framework1->id,
+            'teamname' => 'Team 3',
+            'subuserids' => [$user3->id],
+        ]);
+
         $this->setUser($manager);
 
-        $source = new team_create_userid((int)$framework2->id, 0);
-        $this->assertStringContainsString('First User', $source->label((string)$user1->id));
-        $this->assertStringContainsString('Second User', $source->label((string)$user2->id));
-        $this->assertNull($source->label((string)$user0->id));
-        $this->assertNull($source->label((string)$suspended->id));
-        $this->assertNull($source->validate((string)$user1->id));
-        // Suspended users are not offered as new supervisors, the same as in 4.5,
-        // they have no label above, so the value is refused by the form.
-        $this->assertNull($source->validate((string)$suspended->id));
+        $source2 = new team_create_subuserids((int)$framework2->id, 0);
+        $source1 = new team_create_subuserids((int)$framework1->id, 0);
 
-        $source = new team_create_userid((int)$framework1->id, 0);
-        $this->assertNotNull($source->label((string)$user0->id));
-        $this->assertNull($source->label((string)$deleted->id));
-        $this->assertNull($source->label('-10'));
-        $this->assertNull($source->label('999999'));
-        $this->assertNull($source->label('abc'));
-        $this->assertNull($source->label(''));
+        $this->assertSame([(int)$user1->id, (int)$user2->id], array_keys($source2->labels([(string)$user0->id, (string)$user1->id, (string)$user2->id])));
+        $this->assertSame([(int)$user0->id], array_keys($source1->labels([(string)$user0->id, (string)$user3->id])));
+        $this->assertSame([], $source1->labels([(string)$deleted->id, '-10', 'abc', '', '999999']));
+        $this->assertSame([], $source1->validate([(string)$user0->id, (string)$user1->id]));
 
         if (!mulib::is_mutenancy_available()) {
             return;
@@ -306,12 +321,26 @@ final class team_create_userid_test extends \advanced_testcase {
         $user2 = \tool_mutenancy\local\user::allocate($user2->id, $tenant2->id);
         cohort_add_member($cohort1->id, $user0->id);
 
-        $source = new team_create_userid((int)$framework2->id, 0);
-        $this->assertNotNull($source->label((string)$user1->id));
-        $this->assertNotNull($source->label((string)$user2->id));
+        $source = new team_create_subuserids((int)$framework2->id, 0);
+        $this->assertSame([(int)$user1->id, (int)$user2->id], array_keys($source->labels([(string)$user1->id, (string)$user2->id])));
 
-        $source = new team_create_userid((int)$framework2->id, (int)$tenant1->id);
-        $this->assertNotNull($source->label((string)$user1->id));
-        $this->assertNull($source->label((string)$user2->id));
+        $source = new team_create_subuserids((int)$framework2->id, (int)$tenant1->id);
+        $this->assertSame([(int)$user1->id], array_keys($source->labels([(string)$user1->id, (string)$user2->id])));
+    }
+
+    public function test_validate(): void {
+        /** @var \tool_murelation_generator $generator */
+        $generator = $this->getDataGenerator()->get_plugin_generator('tool_murelation');
+
+        $framework1 = $generator->create_framework(['uimode' => framework::UIMODE_TEAMS]);
+
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user(['suspended' => 1]);
+
+        $this->setAdminUser();
+        $source = new team_create_subuserids((int)$framework1->id, 0);
+        $this->assertSame([(int)$user1->id, (int)$user2->id], array_keys($source->labels([(string)$user1->id, (string)$user2->id])));
+        // Suspended users are allowed, the same as in 4.5.
+        $this->assertSame([], $source->validate([(string)$user1->id, (string)$user2->id]));
     }
 }
