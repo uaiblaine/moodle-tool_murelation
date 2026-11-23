@@ -17,20 +17,21 @@
 // phpcs:disable moodle.Files.BoilerplateComment.CommentEndedTooSoon
 // phpcs:disable moodle.Files.LineLength.TooLong
 
-namespace tool_murelation\muform\autocomplete;
+namespace tool_murelation\muform\userpicker;
 
 use stdClass;
+use tool_mulib\local\sql;
 use tool_murelation\local\uimode_teams;
 use tool_murelation\muform\util\autocomplete\framework_users_trait;
 
 /**
- * Supervisor of an existing team, teams UI.
+ * New members of a team, teams UI.
  *
  * @package     tool_murelation
  * @copyright   2026 Petr Skoda
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-final class team_update_userid extends \tool_mulib\muform\autocomplete\base {
+final class members_create_subuserids extends \tool_mulib\muform\userpicker\base {
     use framework_users_trait;
 
     /** @var stdClass framework record */
@@ -55,10 +56,10 @@ final class team_update_userid extends \tool_mulib\muform\autocomplete\base {
         $this->supervisor = $DB->get_record('tool_murelation_supervisor', ['id' => $supervisorid], '*', MUST_EXIST);
         $this->framework = $DB->get_record('tool_murelation_framework', ['id' => $this->supervisor->frameworkid], '*', MUST_EXIST);
         $this->context = uimode_teams::get_team_context($this->framework, $this->supervisor);
-        if (!uimode_teams::can_update_team($this->framework, $this->supervisor)) {
-            throw new \core\exception\invalid_parameter_exception('Cannot update team');
+        if (!uimode_teams::can_manage_members($this->framework, $this->supervisor)) {
+            throw new \core\exception\invalid_parameter_exception('Cannot manage team members');
         }
-        $this->options = ['currentuserid' => (int)$this->supervisor->userid];
+        $this->options = ['notsubordinate' => true];
     }
 
     #[\Override]
@@ -67,22 +68,12 @@ final class team_update_userid extends \tool_mulib\muform\autocomplete\base {
     }
 
     #[\Override]
-    public function search(string $query, int $maxitems): ?array {
-        return $this->search_users($this->context, $query, $maxitems, [], $this->get_framework_where($this->framework, 'supervisor', $this->options));
+    protected function get_context(): \core\context {
+        return $this->context;
     }
 
     #[\Override]
-    public function label(string $value): ?string {
-        $current = $this->get_current_user_label($this->context, $value, $this->options['currentuserid'] ?? null);
-        if ($current !== null) {
-            return $current;
-        }
-        $where = $this->get_framework_where($this->framework, 'supervisor', $this->options);
-        return $this->user_labels($this->context, [$value], $where)[$value] ?? null;
-    }
-
-    #[\Override]
-    public function validate(string $value): ?string {
-        return $this->validate_users([$value])[$value] ?? null;
+    protected function get_candidates_sql(): ?sql {
+        return $this->get_framework_where($this->framework, 'subordinate', $this->options);
     }
 }
